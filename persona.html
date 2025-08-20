@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Missão Persona — O Avaliador (Versão Pro)</title>
+  <meta name="description" content="Jogo visual e interativo para descobrir a persona-alvo em 12 missões, com UI moderna e animações." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#0b1020; --bg2:#0e1230; --glass:rgba(255,255,255,.06);
+      --text:#eef3ff; --muted:#93a1c7; --stroke:rgba(255,255,255,.14);
+      --accent:#7b5cff; --accent2:#24d2ff; --success:#22c55e;
+      --avent:#2dd4bf; --caut:#f59e0b; --visi:#60a5fa; --cone:#f472b6;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--text); font-family: 'Outfit', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background:
+        radial-gradient(1000px 600px at 80% -10%, #1a214a 0%, transparent 60%),
+        radial-gradient(900px 500px at 10% 110%, #0f2b4a 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      display:flex; align-items:center; justify-content:center; padding:18px;
+    }
+    .app{width:100%; max-width:860px}
+    .frame{position:relative; border-radius:24px; padding:22px; backdrop-filter: blur(10px); background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+      border:1px solid var(--stroke); box-shadow: 0 12px 40px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    header{display:flex; align-items:center; gap:12px; margin-bottom:14px}
+    .logo{width:48px; height:48px; border-radius:14px; display:grid; place-items:center; font-size:26px;
+      background:linear-gradient(135deg, #1d244a 0%, #151a36 100%); border:1px solid var(--stroke)}
+    h1{font-size:1.5rem; margin:0 0 2px; letter-spacing:.2px}
+    .sub{color:var(--muted); font-size:.95rem}
+    .progress{height:14px; width:100%; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; border:1px solid var(--stroke); margin:10px 0 16px}
+    .bar{height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition:width .35s ease}
+    .steps{color:var(--muted); font-size:.9rem}
+    .screen{min-height:420px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; gap:16px}
+    .title{font-size:1.4rem; margin:0}
+    .card{width:100%; background:var(--glass); border:1px solid var(--stroke); border-radius:20px; padding:18px}
+    .q{font-size:1.15rem; margin:0 0 12px}
+    .answers{display:grid; grid-template-columns:1fr; gap:10px}
+    @media(min-width:560px){ .answers{grid-template-columns:1fr 1fr} }
+    .btn{
+      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16);
+      padding:14px 12px; border-radius:14px; cursor:pointer; color:var(--text);
+      transition:transform .04s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+      text-align:left; display:flex; align-items:center; gap:10px; font-weight:700;
+    }
+    .btn:hover{ border-color:rgba(255,255,255,.4); background:rgba(255,255,255,.12); box-shadow:0 6px 20px rgba(0,0,0,.25) }
+    .btn:active{ transform:translateY(1px) }
+    .emoji{font-size:1.2rem}
+    .pill{margin-left:auto; font-size:.8rem; opacity:.9; background:rgba(255,255,255,.1); padding:3px 8px; border-radius:999px}
+    .row{display:grid; gap:12px}
+    @media(min-width:740px){ .row{grid-template-columns:1fr 1fr} }
+    textarea{width:100%; min-height:120px; border-radius:14px; border:1px solid var(--stroke); background:rgba(255,255,255,.06); color:var(--text); padding:12px; resize:vertical}
+    .cta{background:linear-gradient(135deg, var(--accent), var(--accent2)); color:white; border:0; padding:12px 16px; border-radius:12px; font-weight:800; cursor:pointer}
+    .ghost{background:transparent; border:1px solid var(--stroke); color:var(--text); padding:12px 16px; border-radius:12px; font-weight:800; cursor:pointer}
+    .result-badge{display:inline-flex; align-items:center; gap:12px; padding:12px 16px; border-radius:999px; border:1px solid var(--stroke); background:rgba(255,255,255,.06)}
+    .avatar{width:48px; height:48px; border-radius:50%; display:grid; place-items:center; font-size:24px; background:rgba(255,255,255,.1); border:1px solid var(--stroke)}
+    .persona-name{font-weight:900}
+    .small{color:var(--muted); font-size:.92rem}
+    .hide{display:none}
+    .fade{animation:fade .28s ease}
+    @keyframes fade{from{opacity:.3; transform:translateY(4px)} to{opacity:1; transform:none}}
+    canvas#confetti{position:absolute; inset:0; pointer-events:none}
+    
+    /* MELHORIA: Classe para acessibilidade (a11y) */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="frame">
+      <canvas id="confetti"></canvas>
+      <header>
+        <div class="logo">🎯<span class="visually-hidden">Logo do Missão Persona</span></div>
+        <div>
+          <h1>Missão Persona — O Avaliador</h1>
+          <div class="sub">Descubra a persona misteriosa em 12 missões. No final, proponha produtos para ela.</div>
+        </div>
+      </header>
+
+      <div class="progress"><div id="bar" class="bar"></div></div>
+      <div class="steps" id="steps">Pronto para começar</div>
+
+      <div id="screen" class="screen">
+        <section id="start" class="fade">
+          <h2 class="title">Pronto para jogar? 🔎</h2>
+          <p class="small">Você é o avaliador. Cada missão dá uma pista. No final, revelamos a persona com um avatar estiloso.</p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center">
+            <button class="cta" id="startBtn">Começar</button>
+            <button class="ghost" id="howBtn">Como funciona</button>
+          </div>
+        </section>
+
+        <section id="how" class="hide fade">
+          <div class="card">
+            <p class="q"><strong>Como funciona</strong></p>
+            <ul style="text-align:left; line-height:1.7; margin:0; padding-left:18px">
+              <li>Responda pensando na <em>persona misteriosa</em>.</li>
+              <li>Cada escolha soma pontos para: <strong>Aventureiro</strong>, <strong>Cauteloso</strong>, <strong>Visionário</strong> ou <strong>Conector</strong>.</li>
+              <li>No fim, mostramos a persona. Você completa com 3 produtos/serviços.</li>
+            </ul>
+            <div style="margin-top:12px; text-align:center"><button class="cta" id="howStart">Bora!</button></div>
+          </div>
+        </section>
+
+        <section id="quiz" class="hide fade">
+          <div class="card">
+            <p id="question" class="q">Pergunta</p>
+            <div id="answers" class="answers"></div>
+          </div>
+        </section>
+
+        <section id="result" class="hide fade">
+          <div class="card">
+            <div class="result-badge" id="personaBadge">
+              <div class="avatar" id="personaAvatar">🎒</div>
+              <div>
+                <div class="persona-name" id="personaName">Aventureiro</div>
+                <div class="small" id="personaTag">Curte novidades e experiências.</div>
+              </div>
+            </div>
+            <div style="height:12px"></div>
+            <div class="row">
+              <div>
+                <p class="small" style="margin:.2rem 0 .4rem">Anote 3 produtos/serviços que você ofereceria para essa persona:</p>
+                <textarea id="ideas" placeholder="Ex.: seguro viagem, curso de idiomas, app premium..."></textarea>
+              </div>
+              <div>
+                <p class="small" style="margin:.2rem 0 .4rem">Resumo pronto para copiar/compartilhar:</p>
+                <textarea id="summary" readonly></textarea>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:12px">
+              <button class="cta" id="copyBtn">Copiar resumo</button>
+              <a class="ghost" id="shareBtn" href="#" target="_blank" rel="noopener">Compartilhar no WhatsApp</a>
+              <button class="ghost" id="retryBtn">Reiniciar</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+<script>
+// MELHORIA: Encapsulamento do script para proteger o escopo global
+(function() {
+    'use strict'; // Ativa o modo estrito para um código mais seguro
+
+    // Personas (linguagem simples)
+    const PERSONAS = [
+      { id:'avent', nome:'Aventureiro', cor:'var(--avent)', avatar:'🎒', tag:'Curte novidades, experiências e tecnologia.' },
+      { id:'caut',  nome:'Cauteloso',   cor:'var(--caut)',  avatar:'🛡️', tag:'Busca segurança, rotina e escolhas confiáveis.' },
+      { id:'visi',  nome:'Visionário',  cor:'var(--visi)',  avatar:'🚀', tag:'Pensa grande, aprende e quer crescer.' },
+      { id:'cone',  nome:'Conector',    cor:'var(--cone)',  avatar:'🫶', tag:'Gosta de pessoas, status e estar em grupo.' }
+    ];
+
+    // MELHORIA: Mapa de Personas para busca rápida por ID, evitando varreduras repetitivas do array
+    const PERSONAS_MAP = PERSONAS.reduce((acc, p) => {
+      acc[p.id] = p;
+      return acc;
+    }, {});
+
+    // 12 Missões
+    // MELHORIA: Pontuação 'p' agora usa o ID da persona, tornando o código mais robusto
+    const QUESTIONS = [
+      { q:'Nos fins de semana, essa pessoa prefere:', a:[
+        {t:'Viajar e conhecer lugares', e:'✈️', p:'avent'},
+        {t:'Ficar em casa tranquilo(a)', e:'🏠', p:'caut'},
+        {t:'Estudar/planejar o futuro', e:'📈', p:'visi'},
+        {t:'Encontrar amigos e eventos', e:'🎉', p:'cone'}
+      ]},
+      { q:'Ao comprar algo, valoriza mais:', a:[
+        {t:'Inovação e novidade', e:'🧪', p:'avent'},
+        {t:'Preço justo e garantia', e:'💸', p:'caut'},
+        {t:'Qualidade e performance', e:'✅', p:'visi'},
+        {t:'Marca e estilo', e:'👔', p:'cone'}
+      ]},
+      { q:'Objetivo atual dessa pessoa:', a:[
+        {t:'Viver experiências diferentes', e:'🌍', p:'avent'},
+        {t:'Segurança financeira', e:'🏦', p:'caut'},
+        {t:'Crescer na carreira/negócio', e:'📊', p:'visi'},
+        {t:'Ampliar círculo social', e:'🤝', p:'cone'}
+      ]},
+      { q:'Sobre novas tecnologias, ela:', a:[
+        {t:'Testa primeiro', e:'⚙️', p:'avent'},
+        {t:'Usa quando precisa', e:'📱', p:'caut'},
+        {t:'Avalia se traz retorno', e:'💹', p:'visi'},
+        {t:'Adota quando vira tendência', e:'📣', p:'cone'}
+      ]},
+      { q:'Quando decide algo importante, tende a:', a:[
+        {t:'Ir pela aventura/instinto', e:'⚡', p:'avent'},
+        {t:'Pesquisar muito antes', e:'🔎', p:'caut'},
+        {t:'Planejar e medir riscos', e:'🧮', p:'visi'},
+        {t:'Perguntar a amigos/família', e:'👨‍👩‍👧', p:'cone'}
+      ]},
+      { q:'Conteúdo favorito:', a:[
+        {t:'Vlogs/viagens', e:'🎥', p:'avent'},
+        {t:'Tutoriais práticos', e:'🧰', p:'caut'},
+        {t:'Entrevistas/negócios', e:'🎙️', p:'visi'},
+        {t:'Redes sociais e trends', e:'📱', p:'cone'}
+      ]},
+      { q:'Valores mais importantes:', a:[
+        {t:'Liberdade', e:'🕊️', p:'avent'},
+        {t:'Segurança', e:'🔒', p:'caut'},
+        {t:'Crescimento', e:'📈', p:'visi'},
+        {t:'Reconhecimento', e:'🏆', p:'cone'}
+      ]},
+      { q:'Com dinheiro na mão, ela:', a:[
+        {t:'Compra experiências', e:'🎫', p:'avent'},
+        {t:'Guarda/emergência', e:'💵', p:'caut'},
+        {t:'Investe para render', e:'📈', p:'visi'},
+        {t:'Gasta com o grupo/estilo', e:'🛍️', p:'cone'}
+      ]},
+      { q:'No trabalho prefere:', a:[
+        {t:'Autonomia e liberdade', e:'🧭', p:'avent'},
+        {t:'Regras claras e estabilidade', e:'📋', p:'caut'},
+        {t:'Desafios e metas ambiciosas', e:'🎯', p:'visi'},
+        {t:'Equipe e contato com pessoas', e:'🤗', p:'cone'}
+      ]},
+      { q:'Aprende melhor com:', a:[
+        {t:'Explorar na prática', e:'🛠️', p:'avent'},
+        {t:'Passo a passo', e:'📚', p:'caut'},
+        {t:'Exemplos de sucesso', e:'🏅', p:'visi'},
+        {t:'Conversas e grupos', e:'💬', p:'cone'}
+      ]},
+      { q:'Ao escolher uma marca, pensa em:', a:[
+        {t:'Algo diferente/autêntico', e:'✨', p:'avent'},
+        {t:'Confiável e durável', e:'🧱', p:'caut'},
+        {t:'Alta performance', e:'⚙️', p:'visi'},
+        {t:'Imagem/pertencer ao grupo', e:'👑', p:'cone'}
+      ]},
+      { q:'Sonho que combina mais:', a:[
+        {t:'Dar a volta ao mundo', e:'🗺️', p:'avent'},
+        {t:'Casa própria tranquila', e:'🏠', p:'caut'},
+        {t:'Empresa de sucesso', e:'🏢', p:'visi'},
+        {t:'Comunidade forte de amigos', e:'🫂', p:'cone'}
+      ]}
+    ];
+
+    // Estado
+    // MELHORIA: 'scores' agora é um objeto para maior clareza e robustez
+    const state = {
+      i: 0,
+      scores: { avent: 0, caut: 0, visi: 0, cone: 0 }
+    };
+
+    // DOM
+    const $ = s => document.querySelector(s);
+    const bar = $('#bar'); const steps = $('#steps');
+    const screenStart = $('#start'); const screenHow = $('#how');
+    const screenQuiz = $('#quiz'); const screenResult = $('#result');
+    const qEl = $('#question'); const ansWrap = $('#answers');
+    const personaBadge = $('#personaBadge'); const personaAvatar = $('#personaAvatar');
+    const personaName = $('#personaName'); const personaTag = $('#personaTag');
+    const ideas = $('#ideas'); const summary = $('#summary'); const shareBtn = $('#shareBtn');
+
+    function show(el){ el.classList.remove('hide'); el.classList.add('fade'); }
+    function hide(el){ el.classList.add('hide'); el.classList.remove('fade'); }
+
+    function updateProgress(){
+      const pct = Math.min(100, Math.round((state.i / QUESTIONS.length) * 100));
+      bar.style.width = pct + '%';
+      steps.textContent = state.i < QUESTIONS.length ? `Missão ${state.i + 1} de ${QUESTIONS.length}` : 'Missões concluídas';
+    }
+
+    function start(){
+      state.i = 0;
+      // MELHORIA: Reset do objeto de scores
+      state.scores = { avent: 0, caut: 0, visi: 0, cone: 0 };
+      hide(screenStart); hide(screenHow); hide(screenResult);
+      show(screenQuiz);
+      renderQuestion(); updateProgress();
+    }
+
+    function renderQuestion(){
+      const q = QUESTIONS[state.i];
+      qEl.textContent = q.q; ansWrap.innerHTML = '';
+      q.a.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        // MELHORIA: Usa o mapa de personas para encontrar o nome pelo ID 'p'
+        btn.innerHTML = `<span class="emoji">${opt.e}</span> <span>${opt.t}</span> <span class="pill">+${PERSONAS_MAP[opt.p].nome}</span>`;
+        btn.addEventListener('click', () => select(opt.p, btn));
+        ansWrap.appendChild(btn);
+      });
+    }
+
+    function select(personaId, btn){
+      // Desativa todos os botões para evitar clique duplo
+      Array.from(ansWrap.children).forEach(b => b.disabled = true);
+      
+      btn.style.borderColor = 'rgba(255,255,255,.5)';
+      btn.style.background = 'rgba(255,255,255,.16)';
+
+      // MELHORIA: Incrementa a pontuação usando o ID da persona
+      state.scores[personaId]++;
+      state.i++;
+      updateProgress();
+      
+      // Pequeno atraso para o usuário ver a seleção antes da próxima pergunta
+      setTimeout(() => {
+        if (state.i >= QUESTIONS.length) {
+          finish();
+        } else {
+          renderQuestion();
+        }
+      }, 300);
+    }
+    
+    // MELHORIA: Nova função para encontrar a persona com maior pontuação em um objeto
+    function findWinner(scores) {
+      return Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+    }
+
+    function finish(){
+      hide(screenQuiz); show(screenResult); bar.style.width = '100%';
+      steps.textContent = 'Missões concluídas';
+      
+      const winnerId = findWinner(state.scores);
+      const p = PERSONAS_MAP[winnerId];
+
+      personaBadge.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue(p.cor) || p.cor;
+      personaAvatar.textContent = p.avatar;
+      personaName.textContent = p.nome;
+      personaTag.textContent = p.tag;
+      personaName.style.color = p.cor;
+      personaAvatar.style.boxShadow = `0 0 0 4px ${p.cor}22 inset`;
+      
+      ideas.value = '';
+      buildSummary(); ideas.oninput = buildSummary;
+      
+      confettiBurst();
+      updateShareLink();
+    }
+
+    function buildSummary(){
+      const persona = personaName.textContent;
+      const tag = personaTag.textContent;
+      const produtos = ideas.value.trim() || '(adicione 3 produtos/serviços)';
+      summary.value = `Resultado — Missão Persona\nPersona: ${persona}\nResumo: ${tag}\nPistas analisadas: ${QUESTIONS.length}\nSugestões de oferta: ${produtos}`;
+      updateShareLink();
+    }
+
+    function updateShareLink(){
+      const text = encodeURIComponent(summary.value || 'Joguei o Missão Persona!');
+      shareBtn.href = `https://wa.me/?text=${text}`;
+    }
+
+    // Controles
+    $('#startBtn').addEventListener('click', start);
+    $('#howBtn').addEventListener('click', () => { hide(screenStart); show(screenHow); updateProgress(); });
+    $('#howStart').addEventListener('click', start);
+
+    $('#retryBtn').addEventListener('click', () => {
+      ideas.value = ''; summary.value = '';
+      hide(screenResult); show(screenStart);
+      bar.style.width = '0%'; steps.textContent = 'Pronto para começar';
+    });
+
+    $('#copyBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(summary.value);
+        toast('Resumo copiado!');
+      } catch (err) {
+        summary.select();
+        document.execCommand('copy');
+        toast('Resumo copiado!');
+      }
+    });
+
+    // Teclas 1-4
+    window.addEventListener('keydown', (e) => {
+      if (screenQuiz.classList.contains('hide')) return;
+      const k = e.key;
+      if (['1', '2', '3', '4'].includes(k)) {
+        const btn = ansWrap.children[Number(k) - 1];
+        if (btn && !btn.disabled) btn.click();
+      }
+    });
+
+    // Micro toast
+    function toast(msg){
+      const t = document.createElement('div');
+      t.textContent = msg;
+      Object.assign(t.style, {
+        position: 'fixed', left: '50%', bottom: '22px', transform: 'translateX(-50%)',
+        padding: '10px 14px', borderRadius: '10px', background: 'rgba(0,0,0,.7)',
+        color: '#fff', fontWeight: '800', zIndex: 99, transition: 'opacity 0.3s ease', opacity: '0'
+      });
+      document.body.appendChild(t);
+      setTimeout(() => t.style.opacity = '1', 50); // Fade in
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.addEventListener('transitionend', () => t.remove());
+      }, 2000); // Fade out and remove
+    }
+
+    // Confete simples
+    const cf = document.getElementById('confetti');
+    const ctx = cf.getContext('2d');
+    let particles = [];
+    function resizeCanvas(){ cf.width = cf.clientWidth; cf.height = cf.clientHeight; }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    function confettiBurst(){
+      const colors = [getColor('--avent'), getColor('--caut'), getColor('--visi'), getColor('--cone')];
+      particles = Array.from({length: 120}, () => ({
+        x: Math.random() * cf.width, y: -10,
+        vy: 2 + Math.random() * 4, vx: -2 + Math.random() * 4,
+        s: 3 + Math.random() * 4,
+        c: colors[Math.floor(Math.random() * colors.length)],
+        a: 1
+      }));
+      animate();
+    }
+    
+    function getColor(varName){ return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#fff'; }
+    
+    let animationFrameId = null;
+    function animate(){
+      ctx.clearRect(0, 0, cf.width, cf.height);
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy; p.a -= 0.007;
+        ctx.globalAlpha = Math.max(0, p.a);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(p.x, p.y, p.s, p.s);
+      });
+      ctx.globalAlpha = 1;
+      particles = particles.filter(p => p.a > 0 && p.y < cf.height + 20);
+      
+      if (particles.length > 0) {
+        animationFrameId = requestAnimationFrame(animate);
+      } else {
+        cancelAnimationFrame(animationFrameId);
+      }
+    }
+})();
+</script>
+</body>
+</html>
